@@ -1,0 +1,102 @@
+#!/bin/sh -e
+
+program_name="$(pwd)"
+program_name="${program_name##*/}"
+
+arch="$(uname -m)"
+tag="droppkg"
+
+IFS=" " read -r version build < "version"
+
+if [ ! -f "$program_name-$version.tar.xz" ]; then
+	read -r source < "sources"
+	wget \
+		--continue \
+		"$source"
+fi
+
+cwd="$(pwd)"
+pkg="$cwd/package-$program_name"
+
+if [ -d "$pkg" ]; then
+	rm -r "$pkg"
+fi
+mkdir "$pkg"
+
+if [ -d "$cwd/$program_name-$version" ]; then
+	rm -r "$cwd/$program_name-$version"
+fi
+
+tar xvf "$program_name-$version.tar.xz"
+cd "$program_name-$version"
+
+chown root:root -R .
+
+patch -Np1 -i "$cwd"/patches/glibc-2.37-fhs-1.patch
+
+sed '/width -=/s/workend - string/number_length/' \
+	-i stdio-common/vfprintf-process-arg.c
+
+mkdir build
+cd build
+
+echo "rootsbindir=/usr/sbin" > configparms
+
+../configure \
+	--prefix=/usr                            \
+	--disable-werror                         \
+	--enable-kernel=3.2                      \
+	--enable-stack-protector=strong          \
+	--with-headers=/usr/include              \
+	libc_cv_slibdir=/usr/lib
+
+make -j"$(NPROC)"
+
+install -dm0755 -o root -g root "$pkg"/etc
+echo "" > "$pkg"/etc/ld.so.conf
+
+sed '/test-installation/s@$(PERL)@echo not running@' -i ../Makefile
+
+make DESTDIR="$pkg" install
+
+sed '/RTLDLIST=/s@/usr@@g' -i "$pkg/usr/bin/ldd"
+
+cp -v ../nscd/nscd.conf "$pkg/etc/nscd.conf"
+
+install -dm0755 -o root -g root "$pkg"/var/cache/nscd
+
+install -dm0755 -o root -g root "$pkg"/etc
+install -dm0755 -o root -g root "$pkg"/etc/ld.so.conf.d
+
+install -Dm0644 -o root -g root "$cwd"/files/nsswitch.conf \
+	"$pkg"/etc/
+install -Dm0644 -o root -g root "$cwd"/files/ld.so.conf \
+	"$pkg"/etc/
+
+install -dm0755 -o root -g root "$pkg"/usr/lib/locale
+
+install -dm0755 -o root -g root \
+	"$pkg/usr/share/doc/$program_name-$version"
+
+(
+cd "$cwd/$program_name-$version"
+install -Dm0644 \
+	COPYING COPYING.LIB LICENSES \
+	"$pkg/usr/share/doc/$program_name-$version/"
+)
+
+mkdir -p "$pkg/var/lib/db/tree/packages/installed/$program_name"
+mkdir -p "$pkg/var/lib/db/tree/packages/installed/$program_name/files"
+mkdir -p "$pkg/var/lib/db/tree/packages/installed/$program_name/patches"
+cd "$cwd"
+cp build description sources version \
+	"$pkg/var/lib/db/tree/packages/installed/$program_name/"
+cp files/* \
+	"$pkg/var/lib/db/tree/packages/installed/$program_name/files/"
+cp patches/* \
+	"$pkg/var/lib/db/tree/packages/installed/$program_name/patches/"
+
+cd "$pkg"
+/sbin/treepkg make \
+	"$cwd/$program_name-$version-$arch-${build}_${tag}.tar.zstd"
+
