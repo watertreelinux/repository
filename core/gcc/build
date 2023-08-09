@@ -1,0 +1,91 @@
+#!/bin/sh -e
+
+program_name="$(pwd)"
+program_name="${program_name##*/}"
+
+arch="$(uname -m)"
+tag="droppkg"
+
+IFS=" " read -r version build < "version"
+
+if [ ! -f "$program_name-$version.tar.xz" ]; then
+	read -r source < "sources"
+	wget \
+		--continue \
+		"$source"
+fi
+
+cwd="$(pwd)"
+pkg="$cwd/package-$program_name"
+
+if [ -d "$pkg" ]; then
+	rm -r "$pkg"
+fi
+mkdir "$pkg"
+
+if [ -d "$cwd/$program_name-$version" ]; then
+	rm -r "$cwd/$program_name-$version"
+fi
+
+tar xvf "$program_name-$version.tar.xz"
+cd "$program_name-$version"
+
+chown root:root -R .
+
+case $(uname -m) in
+	x86_64)
+		sed -e '/m64=/s/lib64/lib/' \
+		-i.orig gcc/config/i386/t-linux64
+	;;
+esac
+
+mkdir build
+cd build
+
+../configure \
+	--prefix=/usr \
+	LD=ld \
+	--enable-languages=c,c++ \
+	--enable-default-pie \
+	--enable-default-ssp \
+	--disable-multilib \
+	--disable-bootstrap \
+	--with-system-zlib
+
+make -j2
+
+make DESTDIR="$pkg" install
+
+chown -v -R root:root \
+	"$pkg"/usr/lib/gcc/x86_64-pc-linux-gnu/"$version"/include{,-fixed}
+
+install -dm0755 -o root -g root "$pkg/usr/lib"
+ln -svr /usr/bin/cpp "$pkg"/usr/lib
+
+install -dm0755 -o root -g root "$pkg"/usr/lib/bfd-plugins
+ln -sfv ../../libexec/gcc/x86_64-pc-linux-gnu/"$version"/liblto_plugin.so \
+	"$pkg"/usr/lib/bfd-plugins/
+
+
+install -dm0755 -o root -g root \
+	"$pkg"/usr/share/gdb/auto-load/usr/lib
+mv -v "$pkg"/usr/lib/*gdb.py \
+	"$pkg"/usr/share/gdb/auto-load/usr/lib
+
+install -dm0755 "$pkg/usr/share/doc/$program_name-$version"
+for f in COPYING COPYING3 COPYING.LIB COPYING3.LIB \
+	COPYING.RUNTIME; do
+	install -Dm0644 "../${f}" \
+		"$pkg/usr/share/doc/$program_name-$version"
+done
+
+
+mkdir -p "$pkg/var/lib/db/tree/packages/installed/$program_name"
+cd "$cwd"
+cp build description sources version \
+	"$pkg/var/lib/db/tree/packages/installed/$program_name/"
+
+cd "$pkg"
+/sbin/treepkg make \
+	"$cwd/$program_name-$version-$arch-${build}_${tag}.tar.zstd"
+
