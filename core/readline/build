@@ -1,0 +1,68 @@
+#!/bin/sh -e
+
+program_name="$(pwd)"
+program_name="${program_name##*/}"
+
+arch="$(uname -m)"
+tag="droppkg"
+
+IFS=" " read -r version build < "version"
+
+if [ ! -f "$program_name-$version.tar.gz" ]; then
+	read -r source < "sources"
+	wget \
+		--continue \
+		"$source"
+fi
+
+cwd="$(pwd)"
+pkg="$cwd/package-$program_name"
+
+if [ -d "$pkg" ]; then
+	rm -r "$pkg"
+fi
+mkdir "$pkg"
+
+if [ -d "$cwd/$program_name-$version" ]; then
+	rm -r "$cwd/$program_name-$version"
+fi
+
+tar xvf "$program_name-$version.tar.gz"
+cd "$program_name-$version"
+
+chown root:root -R .
+
+sed -i '/MV.*old/d' Makefile.in
+sed -i '/{OLDSUFF}/c:' support/shlib-install
+
+patch -Np1 -i "$cwd"/patches/readline-8.2-upstream_fix-1.patch
+
+./configure \
+	--prefix=/usr \
+	--disable-static \
+	--with-curses \
+	--docdir=/usr/share/doc/"$program_name-$version"
+
+make -j"$(NPROC)" SHLIB_LIBS="-lncursesw"
+
+make DESTDIR="$pkg" SHLIB_LIBS="-lncursesw" install
+
+install -dm0755 "$pkg/usr/share/doc/$program_name-$version"
+install -Dm0644 COPYING \
+	"$pkg/usr/share/doc/$program_name-$version/"
+
+install -v -m0644 doc/*.{ps,pdf,html,dvi} \
+	"$pkg/usr/share/doc/$program_name-$version"
+
+mkdir -p "$pkg/var/lib/db/tree/packages/installed/$program_name"
+mkdir -p "$pkg/var/lib/db/tree/packages/installed/$program_name/patches"
+cd "$cwd"
+cp build description sources version \
+	"$pkg/var/lib/db/tree/packages/installed/$program_name/"
+cp patches/* \
+	"$pkg/var/lib/db/tree/packages/installed/$program_name/patches/"
+
+cd "$pkg"
+/sbin/treepkg make \
+	"$cwd/$program_name-$version-$arch-${build}_${tag}.tar.zstd"
+
