@@ -1,0 +1,10 @@
+--- services	1969-12-31 18:00:00.000000000 -0600
++++ services.with_smpts	2022-03-27 13:41:01.298497626 -0600
+@@ -753,6 +753,7 @@
+ kpasswd          464/tcp    # kpasswd
+ kpasswd          464/udp    # kpasswd
+ urd              465/tcp    # URL Rendezvous Directory for SSM
++smtps            465/tcp    # Secure Simple Mail Transfer
+ submissions      465/tcp    # Message Submission over TLS protocol
+ igmpv3lite       465/udp    # IGMP over UDP for SSM
+ digital-vrc      466/tcp    # digital-vrc
