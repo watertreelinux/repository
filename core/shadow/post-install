@@ -1,0 +1,6 @@
+#!/bin/sh -e
+
+#pwconv
+#grpconv
+
+echo "Remember to run pwconv and grpconv for shadowed passwords."
