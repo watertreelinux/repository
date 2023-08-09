@@ -1,0 +1,88 @@
+#!/bin/sh -e
+
+program_name="$(pwd)"
+program_name="${program_name##*/}"
+
+arch="$(uname -m)"
+tag="droppkg"
+
+IFS=" " read -r version build < "version"
+
+if [ ! -f "$program_name-$version.tar.gz" ]; then
+	read -r source < "sources"
+	wget \
+		--continue \
+		-O "$program_name-$version".tar.gz \
+		"$source"
+fi
+
+cwd="$(pwd)"
+pkg="$cwd/package-$program_name"
+
+if [ -d "$pkg" ]; then
+	rm -r "$pkg"
+fi
+mkdir "$pkg"
+
+if [ -d "$cwd/$program_name-$version" ]; then
+	rm -r "$cwd/$program_name-$version"
+fi
+
+mkdir "$cwd/$program_name-$version"
+tar xvf "$program_name-$version.tar.gz" \
+	--strip-components=1 \
+	-C "$cwd/$program_name-$version"
+cd "$program_name-$version"
+
+chown root:root -R .
+
+SRCDIR=$(pwd)
+
+cd unix
+
+./configure \
+	--prefix=/usr           \
+	--mandir=/usr/share/man
+
+make -j"$(NPROC)"
+
+sed -e "s|$SRCDIR/unix|/usr/lib|" \
+	-e "s|$SRCDIR|/usr/include|"  \
+	-i tclConfig.sh
+
+sed -e "s|$SRCDIR/unix/pkgs/tdbc1.1.5|/usr/lib/tdbc1.1.5|" \
+	-e "s|$SRCDIR/pkgs/tdbc1.1.5/generic|/usr/include|"    \
+	-e "s|$SRCDIR/pkgs/tdbc1.1.5/library|/usr/lib/tcl8.6|" \
+	-e "s|$SRCDIR/pkgs/tdbc1.1.5|/usr/include|"            \
+	-i pkgs/tdbc1.1.5/tdbcConfig.sh
+
+sed -e "s|$SRCDIR/unix/pkgs/itcl4.2.3|/usr/lib/itcl4.2.3|" \
+	-e "s|$SRCDIR/pkgs/itcl4.2.3/generic|/usr/include|"    \
+	-e "s|$SRCDIR/pkgs/itcl4.2.3|/usr/include|"            \
+	-i pkgs/itcl4.2.3/itclConfig.sh
+
+unset SRCDIR
+
+make DESTDIR="$pkg" install
+
+chmod -v u+w "$pkg"/usr/lib/libtcl8.6.so
+
+make DESTDIR="$pkg" install-private-headers
+
+ln -sfv tclsh8.6 "$pkg"/usr/bin/tclsh
+
+mv "$pkg"/usr/share/man/man3/{Thread,Tcl_Thread}.3
+
+install -dm0755 "$pkg/usr/share/doc/$program_name-$version"
+install -Dm0644 ../license.terms \
+	"$pkg/usr/share/doc/$program_name-$version/"
+
+mkdir -p "$pkg/var/lib/db/tree/packages/installed/$program_name"
+cd "$cwd"
+cp build description sources version \
+	"$pkg/var/lib/db/tree/packages/installed/$program_name/"
+
+cd "$pkg"
+/sbin/treepkg make \
+	"$cwd/$program_name-$version-$arch-${build}_${tag}.tar.zstd"
+

@@ -1,0 +1,4 @@
+The Tcl package contains the Tool Command Language, a robust
+general-purpose scripting language. The Expect package is
+written in Tcl (pronounced "tickle").
+
