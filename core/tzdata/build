@@ -1,0 +1,67 @@
+#!/bin/sh -e
+
+program_name="$(pwd)"
+program_name="${program_name##*/}"
+
+arch="$(uname -m)"
+tag="droppkg"
+
+IFS=" " read -r version build < "version"
+
+if [ ! -f "$program_name-$version.tar.gz" ]; then
+	read -r source < "sources"
+	wget \
+		--continue \
+		-O "$program_name-$version".tar.gz \
+		"$source"
+fi
+
+cwd="$(pwd)"
+pkg="$cwd/package-$program_name"
+
+if [ -d "$pkg" ]; then
+	rm -r "$pkg"
+fi
+mkdir "$pkg"
+
+if [ -d "$cwd/$program_name-$version" ]; then
+	rm -r "$cwd/$program_name-$version"
+fi
+
+mkdir "$cwd/$program_name-$version"
+tar xvf "$program_name-$version.tar.gz" \
+	-C "$program_name-$version"
+cd "$program_name-$version"
+
+chown root:root -R .
+
+ZONEINFO="$pkg"/usr/share/zoneinfo
+
+for d in posix right; do
+	install -dm0755 -o root -g root "$ZONEINFO/$d"
+done
+
+for tz in etcetera southamerica northamerica europe africa antarctica  \
+	          asia australasia backward; do
+	zic -L /dev/null   -d "$ZONEINFO"       ${tz}
+	zic -L /dev/null   -d "$ZONEINFO"/posix ${tz}
+	zic -L leapseconds -d "$ZONEINFO"/right ${tz}
+done
+
+cp -v zone.tab zone1970.tab iso3166.tab "$ZONEINFO"
+zic -d "$ZONEINFO" -p America/New_York
+unset ZONEINFO
+
+install -dm0755 "$pkg/usr/share/doc/$program_name-$version"
+install -Dm0644 LICENSE \
+	"$pkg/usr/share/doc/$program_name-$version/"
+
+mkdir -p "$pkg/var/lib/db/tree/packages/installed/$program_name"
+cd "$cwd"
+cp build description sources version \
+	"$pkg/var/lib/db/tree/packages/installed/$program_name/"
+
+cd "$pkg"
+/sbin/treepkg make \
+	"$cwd/$program_name-$version-$arch-${build}_${tag}.tar.zstd"
+
