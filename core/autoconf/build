@@ -45,7 +45,7 @@ make DESTDIR="$pkg" install
 
 find "$pkg" -print0 | xargs -0 file | grep -e "executable" \
 	-e "shared object" | grep ELF | cut -d : -f 1 | \
-	xargs strip --strip-unneeded 2> /dev/null
+	xargs strip --strip-unneeded 2> /dev/null || true
 
 if [ -d "$pkg/usr/lib" ]; then
 	find "$pkg"/usr/lib -name *.la -delete
@@ -59,6 +59,7 @@ install -dm0755 -o root -g root \
 	"$pkg/usr/share/doc/$program_name-$version"
 install -Dm0644 COPYING COPYINGv3 COPYING.EXCEPTION \
 	"$pkg/usr/share/doc/$program_name-$version/"
+
 
 mkdir -p "$pkg/var/lib/db/tree/packages/installed/$program_name"
 cd "$cwd"
