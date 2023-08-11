@@ -50,7 +50,7 @@ echo "rootsbindir=/usr/sbin" > configparms
 	--with-headers=/usr/include              \
 	libc_cv_slibdir=/usr/lib
 
-make -j"$(NPROC)"
+make -j"${NPROC}"
 
 install -dm0755 -o root -g root "$pkg"/etc
 echo "" > "$pkg"/etc/ld.so.conf
@@ -58,6 +58,25 @@ echo "" > "$pkg"/etc/ld.so.conf
 sed '/test-installation/s@$(PERL)@echo not running@' -i ../Makefile
 
 make DESTDIR="$pkg" install
+
+objcopy --only-keep-debug \
+	"$pkg"/usr/lib/libthread_db.so.1 \
+	"$cwd"/files/libthread_db.so.1.dbg 
+
+find "$pkg" -print0 | xargs -0 file | grep -e "executable" \
+	-e "shared object" | grep ELF | cut -d : -f 1 | \
+	xargs strip --strip-unneeded 2> /dev/null || true
+
+if [ -d "$pkg/usr/lib" ]; then
+	find "$pkg"/usr/lib -name *.la -delete
+fi
+
+if [ -d "$pkg/usr/libexec" ]; then
+	find "$pkg"/usr/libexec -name *.la -delete
+fi
+
+objcopy --add-gnu-debuglink="$cwd"/files/libthread_db.so.1.dbg \
+	"$pkg"/usr/lib/libthread_db.so.1
 
 sed '/RTLDLIST=/s@/usr@@g' -i "$pkg/usr/bin/ldd"
 
@@ -77,7 +96,6 @@ install -dm0755 -o root -g root "$pkg"/usr/lib/locale
 
 install -dm0755 -o root -g root \
 	"$pkg/usr/share/doc/$program_name-$version"
-
 
 for f in COPYING COPYING.LIB LICENSES; do
 	install -Dm0644 ../"${f}" \
