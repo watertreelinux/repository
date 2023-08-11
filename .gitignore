@@ -13,6 +13,7 @@
 !core/*/version
 !core/*/files/
 !core/*/files/*
+core/glibc/files/libthread_db.so.1.dbg
 !core/*/patches/
 !core/*/patches/*
 
