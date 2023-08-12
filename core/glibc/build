@@ -59,9 +59,13 @@ sed '/test-installation/s@$(PERL)@echo not running@' -i ../Makefile
 
 make DESTDIR="$pkg" install
 
-objcopy --only-keep-debug \
-	"$pkg"/usr/lib/libthread_db.so.1 \
-	"$cwd"/files/libthread_db.so.1.dbg 
+libs="libthread_db.so.1 ld-linux-x86-64.so.2"
+
+for lib in $libs; do
+	objcopy --only-keep-debug \
+		"$pkg"/usr/lib/"$lib" \
+		"$cwd"/files/"$lib".dbg
+done
 
 find "$pkg" -print0 | xargs -0 file | grep -e "executable" \
 	-e "shared object" | grep ELF | cut -d : -f 1 | \
@@ -75,8 +79,10 @@ if [ -d "$pkg/usr/libexec" ]; then
 	find "$pkg"/usr/libexec -name \*.la -delete
 fi
 
-objcopy --add-gnu-debuglink="$cwd"/files/libthread_db.so.1.dbg \
-	"$pkg"/usr/lib/libthread_db.so.1
+for lib in $libs; do
+	objcopy --add-gnu-debuglink="$cwd"/files/"$lib".dbg \
+		"$pkg"/usr/lib/"$lib"
+done
 
 sed '/RTLDLIST=/s@/usr@@g' -i "$pkg/usr/bin/ldd"
 
