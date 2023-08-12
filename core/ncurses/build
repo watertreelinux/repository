@@ -43,9 +43,21 @@ chown root:root -R .
 	--enable-widec \
 	--with-pkg-config-libdir=/usr/lib/pkgconfig
 
-make -j"$(NPROC)"
+make -j"${NPROC}"
 
 make DESTDIR="$pkg" install
+
+find "$pkg" -print0 | xargs -0 file | grep -e "executable" \
+        -e "shared object" | grep ELF | cut -d : -f 1 | \
+        xargs strip --strip-unneeded 2> /dev/null || true
+
+if [ -d "$pkg/usr/lib" ]; then
+        find "$pkg"/usr/lib -name \*.la -delete
+fi
+
+if [ -d "$pkg/usr/libexec" ]; then
+        find "$pkg"/usr/libexec -name \*.la -delete
+fi
 
 for lib in ncurses form panel menu; do
 	rm -vf "$pkg"/usr/lib/lib"${lib}".so
