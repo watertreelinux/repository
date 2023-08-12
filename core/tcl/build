@@ -44,7 +44,7 @@ cd unix
 	--prefix=/usr           \
 	--mandir=/usr/share/man
 
-make -j"$(NPROC)"
+make -j"${NPROC}"
 
 sed -e "s|$SRCDIR/unix|/usr/lib|" \
 	-e "s|$SRCDIR|/usr/include|"  \
@@ -65,9 +65,33 @@ unset SRCDIR
 
 make DESTDIR="$pkg" install
 
+find "$pkg" -print0 | xargs -0 file | grep -e "executable" \
+        -e "shared object" | grep ELF | cut -d : -f 1 | \
+        xargs strip --strip-unneeded 2> /dev/null || true
+
+if [ -d "$pkg/usr/lib" ]; then
+        find "$pkg"/usr/lib -name \*.la -delete
+fi
+
+if [ -d "$pkg/usr/libexec" ]; then
+        find "$pkg"/usr/libexec -name \*.la -delete
+fi
+
 chmod -v u+w "$pkg"/usr/lib/libtcl8.6.so
 
 make DESTDIR="$pkg" install-private-headers
+
+find "$pkg" -print0 | xargs -0 file | grep -e "executable" \
+        -e "shared object" | grep ELF | cut -d : -f 1 | \
+        xargs strip --strip-unneeded 2> /dev/null || true
+
+if [ -d "$pkg/usr/lib" ]; then
+        find "$pkg"/usr/lib -name \*.la -delete
+fi
+
+if [ -d "$pkg/usr/libexec" ]; then
+        find "$pkg"/usr/libexec -name \*.la -delete
+fi
 
 ln -sfv tclsh8.6 "$pkg"/usr/bin/tclsh
 

@@ -46,9 +46,21 @@ cd build
 	--enable-64-bit-bfd \
 	--with-system-zlib
 
-make -j"$(NPROC)" tooldir=/usr
+make -j"${NPROC}" tooldir=/usr
 
 make DESTDIR="$pkg" tooldir=/usr install
+
+find "$pkg" -print0 | xargs -0 file | grep -e "executable" \
+        -e "shared object" | grep ELF | cut -d : -f 1 | \
+        xargs strip --strip-unneeded 2> /dev/null || true
+
+if [ -d "$pkg/usr/lib" ]; then
+        find "$pkg"/usr/lib -name \*.la -delete
+fi
+
+if [ -d "$pkg/usr/libexec" ]; then
+        find "$pkg"/usr/libexec -name \*.la -delete
+fi
 
 rm -fv "$pkg"/usr/lib/lib{bfd,ctf,ctf-nobfd,sframe,opcodes}.a
 rm -fv "$pkg"/usr/share/man/man1/{gprofng,gp-*}.1

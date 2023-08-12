@@ -38,11 +38,24 @@ chown root:root -R .
 	--disable-static \
 	--docdir=/usr/share/doc/"$program_name-$version"
 
-make -j"$(NPROC)"
+make -j"${NPROC}"
 make html
 
 make DESTDIR="$pkg" install
+
 make DESTDIR="$pkg" install-html
+
+find "$pkg" -print0 | xargs -0 file | grep -e "executable" \
+        -e "shared object" | grep ELF | cut -d : -f 1 | \
+        xargs strip --strip-unneeded 2> /dev/null || true
+
+if [ -d "$pkg/usr/lib" ]; then
+        find "$pkg"/usr/lib -name \\*.la -delete
+fi
+
+if [ -d "$pkg/usr/libexec" ]; then
+        find "$pkg"/usr/libexec -name \\*.la -delete
+fi
 
 install -dm0755 "$pkg/usr/share/doc/$program_name-$version"
 for f in COPYING COPYINGv2 COPYINGv3 COPYING.LESSERv3 README; do
