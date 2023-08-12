@@ -72,8 +72,11 @@ install -Dm0644 COPYING \
 	"$pkg/usr/share/doc/$program_name-$version/"
 
 mkdir -p "$pkg/var/lib/db/tree/packages/installed/$program_name"
+mkdir -p "$pkg/var/lib/db/tree/packages/installed/$program_name/patches"
 cd "$cwd"
 cp build description sources version \
+	"$pkg/var/lib/db/tree/packages/installed/$program_name/"
+cp patches/* \
 	"$pkg/var/lib/db/tree/packages/installed/$program_name/"
 
 cd "$pkg"
