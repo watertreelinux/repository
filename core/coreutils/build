@@ -44,7 +44,7 @@ make -j"${NPROC}"
 
 make DESTDIR="$pkg" install
 
-install -dm0755 -o root -g root "$pkg/sbin"
+install -dm0755 -o root -g root "$pkg/usr/sbin"
 mv -v "$pkg"/usr/bin/chroot "$pkg"/usr/sbin
 
 install -dm0755 -o root -g root \
