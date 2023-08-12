@@ -77,7 +77,7 @@ cd "$cwd"
 cp build description sources version \
 	"$pkg/var/lib/db/tree/packages/installed/$program_name/"
 cp patches/* \
-	"$pkg/var/lib/db/tree/packages/installed/$program_name/"
+	"$pkg/var/lib/db/tree/packages/installed/$program_name/patches/"
 
 cd "$pkg"
 /sbin/treepkg make \
