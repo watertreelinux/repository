@@ -1,0 +1,4 @@
+The Sysklogd package contains programs for logging system
+messages, such as those emitted by the kernel when unusual
+things happen.
+
