@@ -1,0 +1,4 @@
+#!/bin/sh -e
+
+echo "Run: udevadm hwdb --update"
+echo "... each time the hw info. is updated."
